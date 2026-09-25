@@ -15,7 +15,7 @@ installers: no DMG, MSI, deb, code signing, notarization, itch.io channel or
 update feed. `npm run run` is the way to use it.
 
 Already cloned without `--recurse-submodules`? Run `npm run setup` — it
-initialises the [ai-mentat-sdk](https://github.com/hexstack-apps/ai-mentat-sdk)
+initialises the [ai-mentats-sdk](https://github.com/rchuvilev/ai-mentats-sdk)
 submodule for you.
 
 | script | what it does |
@@ -45,7 +45,7 @@ failing to start.
 ## Shared code
 
 Common logic, UI and utilities live in
-[ai-mentat-sdk](https://github.com/hexstack-apps/ai-mentat-sdk), mounted here as
+[ai-mentats-sdk](https://github.com/rchuvilev/ai-mentats-sdk), mounted here as
 a git submodule at `sdk/`.
 
 ---

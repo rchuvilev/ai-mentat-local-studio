@@ -1,4 +1,4 @@
 [submodule "sdk"]
 	path = sdk
-	url = https://github.com/rchuvilev/ai-mentat-sdk.git
+	url = https://github.com/rchuvilev/ai-mentats-sdk.git
 	branch = main
