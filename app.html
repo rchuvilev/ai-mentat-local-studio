@@ -6,6 +6,9 @@
   <title>Hexstack Mentat Local Studio</title>
   <link rel="stylesheet" href="sdk/ui/base.css">
   <link rel="stylesheet" href="app.css">
+  <!-- Before app.js, which builds the flow on load. -->
+  <script src="sdk/ui/steps.js"></script>
+  <script src="sdk/ui/modal.js"></script>
 </head>
 <body>
 
@@ -13,16 +16,16 @@
   <span class="top-bar__title">Local Studio</span>
   <div class="top-bar__spacer"></div>
   <span id="hw-badge" class="badge" title="Detected accelerator"></span>
+  <button type="button" class="top-bar__icon" id="icon-queue">Queue <span id="queue-count" class="pill"></span></button>
+  <button type="button" class="top-bar__icon" id="icon-gallery">Gallery</button>
 </div>
 
-<div class="tab-bar">
-  <button class="active" data-tab="generate">Generate</button>
-  <button data-tab="queue">Queue <span id="queue-count" class="pill"></span></button>
-  <button data-tab="gallery">Gallery</button>
-  <button data-tab="setup">Setup <span id="setup-badge" class="pill pill--warn" style="display:none">!</span></button>
-</div>
+<!-- Generate is the work surface; Setup is the gate in front of it.
+     Queue and Gallery are things you GLANCE at mid-flow, so they open from
+     the header rather than taking you off what you were making. -->
+<div id="flow"></div>
 
-<div class="tab-content">
+<div class="tab-content" id="content-source" hidden>
 
   <!-- ── Generate ─────────────────────────────────────────────────────── -->
   <div id="tab-generate" class="panel active">
@@ -196,6 +199,7 @@
         marked; the rest unlock extra modes.
       </p>
 
+      <span id="setup-badge" class="pill pill--warn" hidden>!</span>
       <div id="setup-ready" class="ready-banner"></div>
 
       <!-- Hardware advisor. Populated on launch by the startup compatibility

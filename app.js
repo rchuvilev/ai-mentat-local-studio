@@ -43,9 +43,36 @@ let running = false;
 })();
 
 function wireEvents() {
-  document.querySelectorAll('.tab-bar button').forEach((b) => {
-    b.onclick = () => showTab(b.dataset.tab);
+  // ── The flow ──
+  //
+  // Generate, Queue and Gallery genuinely ARE peers — three views of one
+  // creative loop — so they are not stacked into an accordion; forcing that
+  // would mean expanding a section every time you wanted to check the queue.
+  // What is sequential here is Setup: you cannot generate without the models.
+  // So Setup is a gate, Generate is the surface, and Queue and Gallery open
+  // from the header as things you glance at without losing your place.
+  flow = HexKit.createSteps(document.getElementById('flow'), {
+    steps: [
+      { id: 'setup',    title: 'Install what you need', hint: 'Engines and models for the kinds of output you want' },
+      { id: 'generate', title: 'Make something',        hint: 'Describe it, pick a length, generate' },
+    ],
   });
+  flow.body('setup').appendChild(document.querySelector('#tab-setup .panel-scroll'));
+  flow.body('generate').appendChild(document.getElementById('tab-generate'));
+  document.getElementById('tab-generate').classList.add('active');
+  flow.body('generate').classList.add('steps__body--fill');
+
+  const queueBody   = document.querySelector('#tab-queue .panel-scroll') || document.getElementById('tab-queue');
+  const galleryBody = document.querySelector('#tab-gallery .panel-scroll') || document.getElementById('tab-gallery');
+  document.getElementById('icon-queue').onclick   = () => HexKit.openModal({ title: 'Queue', content: queueBody });
+  document.getElementById('icon-gallery').onclick = () => { loadGallery(); HexKit.openModal({ title: 'Gallery', content: galleryBody }); };
+
+  // Generate is reachable immediately — someone already set up should not have
+  // to walk the gate again. Setting a step active also opens it, so re-open
+  // setup after; refreshSetup() then decides which one should actually be open.
+  flow.setState('generate', 'active');
+  flow.open('setup');
+  refreshSetup();
 
   // Advisor controls. `force` re-probes instead of serving the cached profile —
   // the point of the button is to pick up a change (freed disk, GPU driver
@@ -104,11 +131,19 @@ function wireEvents() {
   studio.onSetupProgress(onSetupProgress);
 }
 
+let flow = null;
+
+/**
+ * Kept as the one way the rest of the app changes view, so existing callers —
+ * "a run finished, show the gallery" — keep working. Queue and Gallery are now
+ * dialogs rather than panels, which is the only thing that changed for them.
+ */
 function showTab(tab) {
-  document.querySelectorAll('.tab-bar button').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
-  document.querySelectorAll('.panel').forEach((p) => p.classList.toggle('active', p.id === `tab-${tab}`));
-  if (tab === 'gallery') loadGallery();
-  if (tab === 'setup') { refreshSetup(); refreshAdvisor(); }
+  if (!flow) return;
+  if (tab === 'gallery') { loadGallery(); return void HexKit.openModal({ title: 'Gallery', content: document.querySelector('#tab-gallery .panel-scroll') || document.getElementById('tab-gallery') }); }
+  if (tab === 'queue') return void HexKit.openModal({ title: 'Queue', content: document.querySelector('#tab-queue .panel-scroll') || document.getElementById('tab-queue') });
+  if (tab === 'setup') { flow.open('setup'); refreshSetup(); refreshAdvisor(); return; }
+  flow.open('generate');
 }
 
 function applySettingsToUi() {
@@ -543,7 +578,16 @@ setTimeout(() => { if (!advisorArrived) refreshAdvisor(); }, 2000);
 async function refreshSetup() {
   const s = await studio.setupStatus();
 
-  document.getElementById('setup-badge').style.display = s.ready ? 'none' : '';
+  document.getElementById('setup-badge').hidden = !!s.ready;
+  if (flow) {
+    // A count, not the whole list: the list is right there in the banner
+    // inside the step, and a header note is a glance, not a manifest.
+    flow.setNote('setup', s.ready ? 'Ready' : `${s.missingRequired.length} missing`);
+    // Collapse the gate once it is satisfied and put the user on the surface
+    // they came for; keep it open while anything required is still missing.
+    if (s.ready && flow.state('setup') !== 'done') { flow.setState('setup', 'done'); flow.open('generate'); }
+    if (!s.ready) flow.setState('setup', 'active');
+  }
   const banner = document.getElementById('setup-ready');
   banner.className = 'ready-banner ' + (s.ready ? 'ready-banner--ok' : 'ready-banner--warn');
   banner.textContent = s.ready
