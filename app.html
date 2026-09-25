@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hexstack Mentat Local Studio</title>
+  <link rel="stylesheet" href="sdk/ui/base.css">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<div class="top-bar">
+  <a href="#" class="top-bar__logo" onclick="event.preventDefault(); studio.openExternal('https://hexstack.app')">hexstack.app</a>
+  <span class="top-bar__title">Local Studio</span>
+  <div class="top-bar__spacer"></div>
+  <span id="hw-badge" class="badge" title="Detected accelerator"></span>
+</div>
+
+<div class="tab-bar">
+  <button class="active" data-tab="generate">Generate</button>
+  <button data-tab="queue">Queue <span id="queue-count" class="pill"></span></button>
+  <button data-tab="gallery">Gallery</button>
+  <button data-tab="setup">Setup <span id="setup-badge" class="pill pill--warn" style="display:none">!</span></button>
+</div>
+
+<div class="tab-content">
+
+  <!-- ── Generate ─────────────────────────────────────────────────────── -->
+  <div id="tab-generate" class="panel active">
+    <div class="panel-scroll two-col">
+
+      <div class="col-main">
+        <div class="card">
+          <h3>What do you want to make?</h3>
+
+          <div class="mode-grid" id="mode-grid">
+            <!-- Movie is last and is the default: "make last option initially
+                 chosen by default / on start" -->
+            <label class="mode"><input type="radio" name="mode" value="image"><span>🖼️ Image</span><em>A single still</em></label>
+            <label class="mode"><input type="radio" name="mode" value="voice"><span>🗣️ Narration</span><em>Spoken audio</em></label>
+            <label class="mode"><input type="radio" name="mode" value="music"><span>🎵 Music</span><em>Background track</em></label>
+            <label class="mode"><input type="radio" name="mode" value="video"><span>🎬 Video</span><em>Stills with motion</em></label>
+            <label class="mode"><input type="radio" name="mode" value="movie" checked><span>🎞️ Full movie</span><em>Every step, composed</em></label>
+          </div>
+
+          <label class="field-label" for="main-prompt">Prompt</label>
+          <textarea id="main-prompt" rows="3" placeholder="fantasy battle of dwarves mounted on hares vs goblins on wolves, goblins win"></textarea>
+
+          <!-- Per-step controls: movie mode only. In single modes the main
+               prompt above is the only input. -->
+          <div id="steps-block" class="steps-block">
+            <div class="steps-head">
+              <h4>Pipeline steps</h4>
+              <span class="hint">Tick a step to include it. Give it its own prompt to override the main one.</span>
+            </div>
+            <div id="steps-list"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Output</h3>
+          <div class="row">
+            <label class="inline" for="length">Length</label>
+            <input type="range" id="length" min="5" max="60" step="1" value="10">
+            <output id="length-val" class="len-val">10s</output>
+          </div>
+          <div class="row">
+            <label class="inline">Orientation</label>
+            <select id="orientation">
+              <option value="landscape">Landscape 832×480</option>
+              <option value="portrait">Portrait 480×832</option>
+              <option value="square">Square 640×640</option>
+            </select>
+            <label class="inline">Quality</label>
+            <select id="quality">
+              <option value="fast">Fast</option>
+              <option value="balanced" selected>Balanced</option>
+              <option value="quality">Quality</option>
+            </select>
+          </div>
+          <div class="row">
+            <label class="inline">Motion</label>
+            <select id="motion"></select>
+            <span id="motion-note" class="hint"></span>
+          </div>
+          <div class="row">
+            <label class="inline">Reference</label>
+            <button class="btn secondary" onclick="pickReference()">Choose image…</button>
+            <span id="ref-name" class="hint">None — scenes start from the prompt alone</span>
+            <button class="btn ghost" id="ref-clear" style="display:none" onclick="clearReference()">Clear</button>
+          </div>
+        </div>
+
+        <!-- The capacity row sits immediately before Run, as specified:
+             "place notification in UI as row before run button" -->
+        <div id="capacity-row" class="capacity-row">
+          <span class="capacity-row__icon">⏱</span>
+          <span id="capacity-text">Estimating…</span>
+        </div>
+
+        <div class="run-row">
+          <button class="btn primary big" id="run-btn" onclick="startRun()">Generate</button>
+          <button class="btn danger big" id="stop-btn" style="display:none" onclick="stopRun()">Stop</button>
+          <button class="btn secondary" onclick="queueCurrentPrompt()">Add to queue</button>
+        </div>
+
+        <div class="card" id="progress-card" style="display:none">
+          <div class="progress-head">
+            <strong id="progress-phase">Starting…</strong>
+            <span id="progress-note" class="hint"></span>
+          </div>
+          <div class="progress-track"><div id="progress-fill" class="progress-fill"></div></div>
+          <details id="log-details">
+            <summary>Run log</summary>
+            <pre id="run-log" class="log"></pre>
+          </details>
+        </div>
+
+        <div id="warnings" class="warnings" style="display:none"></div>
+      </div>
+
+      <div class="col-side">
+        <div class="card">
+          <h3>Preview</h3>
+          <div id="preview-stage" class="preview-stage">
+            <div class="preview-empty">Nothing generated yet.</div>
+          </div>
+          <!-- "can we add preview for all types of generation and preview
+               navigation bar" -->
+          <div id="preview-nav" class="preview-nav"></div>
+          <div class="row" id="preview-actions" style="display:none">
+            <button class="btn secondary" onclick="revealCurrent()">Show in folder</button>
+            <button class="btn secondary" onclick="openCurrent()">Open</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── Queue ────────────────────────────────────────────────────────── -->
+  <div id="tab-queue" class="panel">
+    <div class="panel-scroll">
+      <h2 class="section-title">Prompt Queue</h2>
+      <p class="step-desc">
+        Paste one prompt per line and leave it running. Every item uses the settings
+        from the Generate tab — one setup for the whole batch. A prompt that fails is
+        recorded and the queue moves to the next one.
+      </p>
+
+      <div class="card">
+        <textarea id="queue-input" rows="5" placeholder="a lighthouse in a storm&#10;a fox asleep in autumn leaves&#10;a derelict space station interior"></textarea>
+        <div class="row">
+          <button class="btn" onclick="queueAdd()">Add to queue</button>
+          <button class="btn primary" id="queue-start-btn" onclick="queueStart()">Start queue</button>
+          <button class="btn danger" id="queue-stop-btn" style="display:none" onclick="queueStop()">Stop after current</button>
+          <div class="spacer"></div>
+          <button class="btn ghost" onclick="queueRetry()">Retry failed</button>
+          <button class="btn ghost" onclick="queueClear('finished')">Clear finished</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div id="queue-summary" class="queue-summary"></div>
+        <div id="queue-list" class="queue-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Gallery ──────────────────────────────────────────────────────── -->
+  <div id="tab-gallery" class="panel">
+    <div class="panel-scroll">
+      <h2 class="section-title">Gallery</h2>
+      <div class="row">
+        <label class="inline">Filter</label>
+        <select id="gallery-filter" onchange="loadGallery()">
+          <option value="">All modes</option>
+          <option value="movie">Movie</option>
+          <option value="video">Video</option>
+          <option value="image">Image</option>
+          <option value="music">Music</option>
+          <option value="voice">Narration</option>
+        </select>
+        <div class="spacer"></div>
+        <button class="btn secondary" onclick="studio.setupPaths().then(p=>studio.openPath(p.outputs))">Open output folder</button>
+      </div>
+      <div id="gallery-grid" class="gallery-grid"></div>
+    </div>
+  </div>
+
+  <!-- ── Setup ────────────────────────────────────────────────────────── -->
+  <div id="tab-setup" class="panel">
+    <div class="panel-scroll">
+      <h2 class="section-title">Setup</h2>
+      <p class="step-desc">
+        Everything downloads from here — no manual installs. Required components are
+        marked; the rest unlock extra modes.
+      </p>
+
+      <div id="setup-ready" class="ready-banner"></div>
+
+      <!-- Hardware advisor. Populated on launch by the startup compatibility
+           check and refreshable here, so the model list below is read in the
+           context of what this machine can actually run. -->
+      <div class="card">
+        <h3>This machine</h3>
+        <div id="advisor-summary" class="paths">Scanning hardware…</div>
+        <div id="advisor-stack" class="component-list"></div>
+        <details id="advisor-rejected-wrap" style="display:none">
+          <summary>Not available on this machine</summary>
+          <div id="advisor-rejected" class="paths"></div>
+        </details>
+        <div class="row">
+          <button class="btn secondary" id="advisor-rescan">Re-scan hardware</button>
+          <button class="btn" id="advisor-apply">Use recommended models</button>
+        </div>
+      </div>
+
+      <!-- Components grouped by the pipeline step they serve, in the order the
+           pipeline runs them: plan -> stills -> narration -> music -> motion ->
+           compose. Same order and vocabulary as movie mode's step checkboxes,
+           so "I want narration" maps to one card rather than to knowing that
+           Kokoro-82M is the TTS model.
+
+           Rendered from the `steps` array in setup:status — NOT from a step
+           list retyped here. ai/runner.js owns ALL_STEPS, ai/setup.js derives
+           STEP_GROUPS from it, and a test parses both to keep them aligned. -->
+      <div id="setup-steps"></div>
+
+      <div class="card">
+        <h3>Storage</h3>
+        <div id="paths-list" class="paths"></div>
+        <div class="row">
+          <button class="btn secondary" onclick="studio.setupPaths().then(p=>studio.openPath(p.root))">Open data folder</button>
+          <button class="btn secondary" onclick="studio.setupPaths().then(p=>studio.openPath(p.logs))">Open logs</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Behaviour</h3>
+        <label class="check"><input type="checkbox" id="opt-keepawake"> Keep the machine awake while generating</label>
+        <label class="check"><input type="checkbox" id="opt-confirmclose"> Warn before closing during a generation</label>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

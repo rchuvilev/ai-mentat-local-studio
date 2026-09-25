@@ -1,0 +1,51 @@
+{
+  "name": "ai-mentat-local-studio",
+  "version": "0.1.0",
+  "description": "Hexstack Mentat Local Studio — fully local AI media generation: images, narration, music and video, with an overnight prompt queue",
+  "main": "electron-main.bundle.js",
+  "productName": "ai-mentat-local-studio",
+  "scripts": {
+    "setup": "node scripts/setup.js",
+    "run": "npm run setup && node sdk/utils/bundle-electron.js && electron electron-main.bundle.js",
+    "gui": "node sdk/utils/bundle-electron.js && electron electron-main.bundle.js",
+    "bundle": "node sdk/utils/bundle-electron.js",
+    "setup:list": "node scripts/download-sdcpp.js --list",
+    "download:engines": "node scripts/download-sdcpp.js",
+    "test:unit": "node --test \"test/test_*.js\"",
+    "test:smoke": "node sdk/utils/bundle-electron.js && electron test/smoke.js",
+    "test": "npm run test:unit && npm run test:ts",
+    "build:ts": "node scripts/build-ts.js",
+    "test:ts": "node scripts/build-ts.js && node --test \".ts-build/*.js\"",
+    "check:sdcpp": "node scripts/check-sdcpp-assets.js"
+  },
+  "keywords": [
+    "electron",
+    "stable-diffusion",
+    "local-ai",
+    "text-to-video",
+    "text-to-speech",
+    "musicgen",
+    "mentat"
+  ],
+  "author": "HexStack",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9"
+  },
+  "devDependencies": {
+    "electron": "^44.0.0",
+    "esbuild": "^0.28.2"
+  },
+  "optionalDependencies": {
+    "kokoro-js": "^1.2.1",
+    "node-llama-cpp": "^3.14.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hexstack-apps/ai-mentat-local-studio.git"
+  },
+  "private": true
+}
